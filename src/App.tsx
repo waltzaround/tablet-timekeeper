@@ -447,7 +447,7 @@ function App() {
                 className="flex items-center gap-1"
               >
                 <Upload className="w-3 h-3" />
-                Upload
+                Upload Image
               </Button>
             </div>
 
