@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import App from './App.tsx'
-import Login from './Login.tsx'
+
 
 // Force dark mode regardless of user's system preference
 document.documentElement.classList.add('dark')
