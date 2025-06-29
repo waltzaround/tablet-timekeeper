@@ -315,7 +315,7 @@ function App() {
                   <img 
                     src={getCurrentLogo()!} 
                     alt="Logo" 
-                    className="w-full l object-contain max-w-[24rem] h-[4rem] "
+                    className="w-full l object-contain max-w-[30vw] h-[4rem] object-left "
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
@@ -333,7 +333,7 @@ function App() {
                     <div 
                       className="font-bold tracking-tighter inline-block"
                       style={{
-                        fontSize: `34  vw`,
+                        fontSize: `34vw`,
                         lineHeight: '0.8',
                         width: '100%',
                         textAlign: 'center'
@@ -346,7 +346,7 @@ function App() {
                     <h2 className="text-8xl  text-gray-400 mb-2">
                       {intervals[currentIntervalIndex]?.name || `Interval ${currentIntervalIndex + 1}`}
                     </h2>
-                    <p className="text-gray-800 text-3xl mt-8">
+                    <p className="text-gray-600 text-3xl mt-8">
                       {currentIntervalIndex + 1} of {intervals.length}
                     </p>
                   </div>
@@ -435,7 +435,15 @@ function App() {
               <Button
                 variant={uploadMode === 'file' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setUploadMode('file')}
+                onClick={() => {
+                  const fileInput = document.createElement('input');
+                  fileInput.type = 'file';
+                  fileInput.accept = 'image/*';
+                  fileInput.onchange = (event) => {
+                    handleFileUpload(event as unknown as React.ChangeEvent<HTMLInputElement>);
+                  };
+                  fileInput.click();
+                }}
                 className="flex items-center gap-1"
               >
                 <Upload className="w-3 h-3" />
@@ -454,17 +462,7 @@ function App() {
               </div>
             )}
 
-            {/* File Upload */}
-            {uploadMode === 'file' && (
-              <div className="flex gap-2 items-center">
-                <Input 
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="flex-1"
-                />
-              </div>
-            )}
+
 
             {/* Logo Preview */}
             {getCurrentLogo() && (
