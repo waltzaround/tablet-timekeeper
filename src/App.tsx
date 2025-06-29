@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/drawer"
 import { X, Upload, Link, Trash2 } from "lucide-react";
 import { Input } from "./components/ui/input";
+import { KeyboardAwareInput } from "./components/KeyboardAwareInput";
 import { useState, useEffect } from "react";
+import Aurora from "./components/Aurora";
 
 // Define the interval type
 interface Interval {
@@ -29,9 +31,11 @@ function App() {
   const [logoFile, setLogoFile] = useState<string>("");
   const [uploadMode, setUploadMode] = useState<'url' | 'file'>('url');
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   
   // Slideshow state
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
   const [currentIntervalIndex, setCurrentIntervalIndex] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [timerComplete, setTimerComplete] = useState<boolean>(false);
@@ -45,6 +49,26 @@ function App() {
   const totalMinutes = intervals.reduce((sum, interval) => sum + interval.minutes, 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
+  
+  // Calculate total remaining time
+  const calculateTotalRemainingSeconds = () => {
+    if (!isTimerActive || intervals.length === 0) return 0;
+    
+    // Add remaining time in current interval
+    let total = timeRemaining;
+    
+    // Add time from future intervals
+    for (let i = currentIntervalIndex + 1; i < intervals.length; i++) {
+      total += intervals[i].minutes * 60;
+    }
+    
+    return total;
+  };
+  
+  const totalRemainingSeconds = calculateTotalRemainingSeconds();
+  const remainingHours = Math.floor(totalRemainingSeconds / 3600);
+  const remainingMins = Math.floor((totalRemainingSeconds % 3600) / 60);
+  const remainingSecs = totalRemainingSeconds % 60;
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -226,14 +250,22 @@ function App() {
       setCurrentIntervalIndex(0);
       setTimeRemaining(intervals[0].minutes * 60); // Convert minutes to seconds
       setTimerComplete(false);
+      
+      // Close the drawer when timer starts
+      setDrawerOpen(false);
     }
+  };
+
+  // Toggle pause/resume function
+  const togglePause = () => {
+    setIsPaused(prev => !prev);
   };
 
   // Timer effect to handle countdown and slide transitions
   useEffect(() => {
     let timerId: ReturnType<typeof setInterval> | undefined;
     
-    if (isTimerActive && !timerComplete && intervals.length > 0) {
+    if (isTimerActive && !timerComplete && intervals.length > 0 && !isPaused) {
       timerId = setInterval(() => {
         setTimeRemaining((prev) => {
           // If time is up for current interval
@@ -258,31 +290,32 @@ function App() {
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [isTimerActive, currentIntervalIndex, intervals, timerComplete]);
+  }, [isTimerActive, currentIntervalIndex, intervals, timerComplete, isPaused]);
 
   return (
     <>
-      <Drawer direction="left">
-        {!isTimerActive ? (
-          <section className="h-screen w-screen flex items-center justify-center">
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="left">
+        {!isTimerActive ? (<>  
+          <section className="h-screen w-screen flex items-center justify-center z-[20]">
+         
             <div className="flex flex-col gap-4">
-              <h1 className="font-semibold text-4xl">Walt's Timer</h1>
+              <h1 className="font-semibold text-4xl">Timer Boi</h1>
               <p>this timer helps you keep track of time lmao</p>
-              <DrawerTrigger className="w-full">
-                <Button className="w-full">Get Started</Button>
+              <DrawerTrigger asChild>
+                <Button className="w-full" onClick={() => setDrawerOpen(true)}>Get Started</Button>
               </DrawerTrigger>
             </div>
-          </section>
+          </section></>
         ) : (
           <section className="h-screen w-screen flex items-center justify-center">
-            <div className="flex flex-col items-center gap-6 max-w-xl w-full p-6">
+            <div className="flex flex-col items-center  w-full p-6">
               {/* Logo display */}
               {getCurrentLogo() && (
-                <div className="w-24 h-24 rounded overflow-hidden border mb-4">
+                <div className="  rounded overflow-hidden  mb-4 absolute left-4 top-4 ">
                   <img 
                     src={getCurrentLogo()!} 
                     alt="Logo" 
-                    className="w-full h-full object-cover"
+                    className="w-full l object-contain max-w-[24rem] h-[4rem] "
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
@@ -293,25 +326,35 @@ function App() {
               {/* Current interval info */}
               {!timerComplete ? (
                 <>
-                  <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2">
+         
+                  
+                  {/* Timer display - autoscales based on duration */}
+                  <div className="w-full text-center my-8 select-none">
+                    <div 
+                      className="font-bold tracking-tighter inline-block"
+                      style={{
+                        fontSize: `34  vw`,
+                        lineHeight: '0.8',
+                        width: '100%',
+                        textAlign: 'center'
+                      }}
+                    >
+                      {Math.floor(timeRemaining / 60).toString().padStart(1, '0')}:
+                      {(timeRemaining % 60).toString().padStart(2, '0')}
+                    </div>
+                  </div>         <div className="text-center select-none">
+                    <h2 className="text-8xl  text-gray-400 mb-2">
                       {intervals[currentIntervalIndex]?.name || `Interval ${currentIntervalIndex + 1}`}
                     </h2>
-                    <p className="text-gray-500">
+                    <p className="text-gray-800 text-3xl mt-8">
                       {currentIntervalIndex + 1} of {intervals.length}
                     </p>
                   </div>
                   
-                  {/* Timer display */}
-                  <div className="text-6xl font-bold text-blue-600 my-8">
-                    {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
-                    {(timeRemaining % 60).toString().padStart(2, '0')}
-                  </div>
-                  
                   {/* Progress bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div className="w-full bg-gray-900/40  h-2.5 absolute bottom-0">
                     <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
+                      className="bg-blue-600 h-2.5 " 
                       style={{
                         width: `${100 - (timeRemaining / (intervals[currentIntervalIndex]?.minutes * 60) * 100)}%`
                       }}
@@ -319,23 +362,41 @@ function App() {
                   </div>
                   
                   {/* Controls */}
-                  <div className="flex gap-4 mt-8">
+                  <div className="flex gap-2 absolute top-4 right-4">
                     <Button 
                       variant="outline" 
+                      className="text-gray-400 px-6"
                       onClick={() => setIsTimerActive(false)}
                     >
-                      Exit
+                      Reset
                     </Button>
-                    <DrawerTrigger>
-                      <Button variant="outline">Settings</Button>
+                    <DrawerTrigger asChild>
+                      <Button variant="outline" className="text-gray-400 px-6">Settings</Button>
                     </DrawerTrigger>
+                  </div>
+                  
+                  {/* Total time display at bottom left */}
+                  <div className="absolute bottom-4 left-4 text-lg font-medium text-gray-600 select-none ">
+                    {remainingHours > 0 && `${remainingHours}h `}
+                    {remainingMins > 0 || (remainingHours === 0 && remainingSecs === 0) ? `${remainingMins}m` : ''}
+                    {remainingSecs > 0 ? ` ${remainingSecs}s` : ''} left
+                  </div>
+                  
+                  {/* Pause/Resume button at bottom right */}
+                  <div className="absolute bottom-4 right-4">
+                    <Button 
+                      onClick={togglePause}
+                      variant={isPaused ? "default" : "outline"}
+                      className="px-6"
+                    >
+                      {isPaused ? "Resume" : "Pause"}
+                    </Button>
                   </div>
                 </>
               ) : (
                 <div className="text-center">
-                  <h2 className="text-4xl font-bold mb-6">Timer Complete!</h2>
-                  <p className="text-xl mb-8">All intervals have been completed</p>
-                  <Button onClick={() => setIsTimerActive(false)}>Return to Home</Button>
+                  <h2 className="text-[12rem] font-bold mb-6">Time up!</h2>
+                  <Button onClick={() => setIsTimerActive(false)}>Reset</Button>
                 </div>
               )}
             </div>
@@ -343,7 +404,7 @@ function App() {
         )}
 
     
-        <DrawerContent>
+        <DrawerContent className="h-screen overflow-y-auto overscroll-contain pb-40" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
           <div className="flex justify-between border-b">
             <h2 className="p-4 font-semibold">Timer Settings</h2> <DrawerClose className="p-4 border-l">
               <X />
@@ -436,10 +497,10 @@ function App() {
                   <AccordionTrigger className="p-4 rounded-none ">
                     {interval.name || `Interval ${index + 1}`}
                   </AccordionTrigger>
-                  <AccordionContent className="p-4 flex flex-col gap-2">
+                  <AccordionContent className="p-4 flex flex-col gap-2 accordion-content-open pt-0">
                     <div>
                       <label className="text-xs">Name</label>
-                      <Input 
+                      <KeyboardAwareInput 
                         placeholder="Interval name" 
                         value={interval.name}
                         onChange={(e) => updateInterval(interval.id, 'name', e.target.value)}
@@ -447,7 +508,7 @@ function App() {
                     </div>
                     <div>
                       <label className="text-xs">Minutes</label>
-                      <Input 
+                      <KeyboardAwareInput 
                         placeholder="minutes" 
                         type="number" 
                         value={interval.minutes || ''}

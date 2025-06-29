@@ -133,5 +133,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Add padding to prevent content from being hidden by virtual keyboard */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Styles for keyboard-aware inputs */
+  .keyboard-focused {
+    @apply ring-2 ring-primary/50;
+    z-index: 50;
+    position: relative;
+  }
+  
+  /* Improve scrolling behavior when keyboard is open */
+  @media (max-width: 768px) {
+    html, body {
+      height: -webkit-fill-available;
+      overflow-x: hidden;
+    }
+    
+    .accordion-content-open {
+      padding-bottom: 40vh; /* Add extra space at bottom when accordion is open */
+    }
   }
 }
