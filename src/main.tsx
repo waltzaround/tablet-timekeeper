@@ -23,13 +23,10 @@ forceDarkMode()
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Login />,
+    element:  <App />,
 
   },
-  {
-    path: '/home',
-    element: <App />,
-  },
+
 ])
 
 createRoot(document.getElementById('root')!).render(

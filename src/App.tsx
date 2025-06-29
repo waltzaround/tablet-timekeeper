@@ -1,78 +1,501 @@
-import { Sidebar } from "@/components/sidebar"
-import { Header } from "@/components/header"
-import BlurText from "./components/BlurText";
-import Orb from './components/Orb';
-import { LineChart, DollarSign, ArrowUpRight, ArrowDownRight, Clock, Briefcase } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Button } from "./components/ui/button";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+import { X, Upload, Link, Trash2 } from "lucide-react";
+import { Input } from "./components/ui/input";
+import { useState, useEffect } from "react";
 
-// Extend Window interface to include our custom property
-declare global {
-  interface Window {
-    openMobileSidebar?: () => void;
-  }
+// Define the interval type
+interface Interval {
+  id: string;
+  name: string;
+  minutes: number;
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState("overview");
+  // State for intervals
+  const [intervals, setIntervals] = useState<Interval[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [logoFile, setLogoFile] = useState<string>("");
+  const [uploadMode, setUploadMode] = useState<'url' | 'file'>('url');
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+  
+  // Slideshow state
+  const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
+  const [currentIntervalIndex, setCurrentIntervalIndex] = useState<number>(0);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [timerComplete, setTimerComplete] = useState<boolean>(false);
 
-  const handleAnimationComplete = () => {
-    console.log('Animation completed!');
-  };
+  // Immediate localStorage test
+  console.log('App component rendering...');
+  console.log('Current localStorage timer-intervals:', localStorage.getItem('timer-intervals'));
+  console.log('Has loaded flag:', hasLoaded);
 
-  const handleMobileMenuClick = () => {
-    // Use the openMobileSidebar function exposed by the Sidebar component
-    if (typeof window !== 'undefined' && window.openMobileSidebar) {
-      window.openMobileSidebar();
+  // Calculate total duration from intervals
+  const totalMinutes = intervals.reduce((sum, interval) => sum + interval.minutes, 0);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    console.log('=== LOADING FROM localStorage ===');
+    console.log('Component mounted, checking localStorage...');
+    
+    // Load all data at once to prevent race conditions
+    const loadAllData = () => {
+      // Load intervals
+      const savedIntervals = localStorage.getItem('timer-intervals');
+      console.log('Raw saved intervals from localStorage:', savedIntervals);
+      
+      let loadedIntervals = [];
+      if (savedIntervals) {
+        try {
+          const parsedIntervals = JSON.parse(savedIntervals);
+          console.log('Successfully parsed intervals:', parsedIntervals);
+          console.log('Is array?', Array.isArray(parsedIntervals));
+          console.log('Array length:', parsedIntervals?.length);
+          
+          if (Array.isArray(parsedIntervals)) {
+            console.log('Setting intervals state with:', parsedIntervals);
+            loadedIntervals = parsedIntervals;
+          } else {
+            console.log('Parsed data is not an array, skipping...');
+          }
+        } catch (error) {
+          console.error('Failed to parse intervals from localStorage:', error);
+        }
+      } else {
+        console.log('No saved intervals found in localStorage');
+      }
+
+      // Load logo
+      const savedLogoUrl = localStorage.getItem('timer-logo-url');
+      const savedLogoFile = localStorage.getItem('timer-logo-file');
+      console.log('Saved logo URL:', savedLogoUrl);
+      console.log('Saved logo file exists:', !!savedLogoFile);
+      
+      // Set all states at once
+      setIntervals(loadedIntervals);
+      
+      if (savedLogoUrl) {
+        setLogoUrl(savedLogoUrl);
+        setUploadMode('url');
+      } else if (savedLogoFile) {
+        setLogoFile(savedLogoFile);
+        setUploadMode('file');
+      }
+    };
+    
+    // Load data first
+    loadAllData();
+    
+    // Then mark as loaded
+    setTimeout(() => {
+      setHasLoaded(true);
+      console.log('=== LOADING COMPLETE ===');
+    }, 0);
+  }, []); // Empty dependency array to run only on mount
+
+  // Save intervals to localStorage whenever they change, but only after initial load
+  useEffect(() => {
+    if (hasLoaded) {
+      console.log('Saving intervals to localStorage:', intervals);
+      localStorage.setItem('timer-intervals', JSON.stringify(intervals));
+    }
+  }, [intervals, hasLoaded]);
+
+  // Manual save function
+  const saveCurrentState = () => {
+    console.log('Manually saving current state:', intervals);
+    localStorage.setItem('timer-intervals', JSON.stringify(intervals));
+    if (logoUrl) {
+      localStorage.setItem('timer-logo-url', logoUrl);
+    }
+    if (logoFile) {
+      localStorage.setItem('timer-logo-file', logoFile);
     }
   };
 
 
+
+  // Save logo to localStorage whenever it changes, but only after initial load
+  useEffect(() => {
+    if (hasLoaded) {
+      if (uploadMode === 'url' && logoUrl) {
+        localStorage.setItem('timer-logo-url', logoUrl);
+        localStorage.removeItem('timer-logo-file');
+      } else if (uploadMode === 'file' && logoFile) {
+        localStorage.setItem('timer-logo-file', logoFile);
+        localStorage.removeItem('timer-logo-url');
+      }
+    }
+  }, [logoUrl, logoFile, uploadMode, hasLoaded]);
+
+  // Clear all data
+  const clearAllData = () => {
+    setIntervals([]);
+    setLogoUrl("");
+    setLogoFile("");
+    setUploadMode('url');
+    
+    // Clear localStorage
+    localStorage.removeItem('timer-intervals');
+    localStorage.removeItem('timer-logo-url');
+    localStorage.removeItem('timer-logo-file');
+  };
+
+  // Handle file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setLogoFile(result);
+        setUploadMode('file');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Get current logo source
+  const getCurrentLogo = () => {
+    if (uploadMode === 'file' && logoFile) {
+      return logoFile;
+    }
+    if (uploadMode === 'url' && logoUrl) {
+      return logoUrl;
+    }
+    return null;
+  };
+
+  // Add a new interval
+  const addInterval = () => {
+    const newInterval: Interval = {
+      id: Date.now().toString(),
+      name: "",
+      minutes: 0
+    };
+    setIntervals([...intervals, newInterval]);
+  };
+
+  // Remove an interval
+  const removeInterval = (id: string) => {
+    setIntervals(intervals.filter(interval => interval.id !== id));
+  };
+
+  // Update an interval
+  const updateInterval = (id: string, field: keyof Interval, value: string | number) => {
+    setIntervals(intervals.map(interval => 
+      interval.id === id 
+        ? { ...interval, [field]: field === 'minutes' ? Number(value) || 0 : value }
+        : interval
+    ));
+  };
+
+  // Handle form submission
+  const handleSubmit = () => {
+    console.log('Intervals:', intervals);
+    console.log('Total Duration:', { hours: totalHours, minutes: remainingMinutes, totalMinutes });
+    console.log('Logo:', { mode: uploadMode, url: logoUrl, file: logoFile ? 'Base64 data' : null });
+    
+    // Save current state before submission
+    saveCurrentState();
+    
+    // Debug localStorage
+    console.log('=== localStorage Debug ===');
+    console.log('timer-intervals:', localStorage.getItem('timer-intervals'));
+    console.log('timer-logo-url:', localStorage.getItem('timer-logo-url'));
+    console.log('timer-logo-file:', localStorage.getItem('timer-logo-file'));
+    console.log('All localStorage keys:', Object.keys(localStorage));
+    console.log('========================');
+    
+    // Start the slideshow timer
+    if (intervals.length > 0) {
+      setIsTimerActive(true);
+      setCurrentIntervalIndex(0);
+      setTimeRemaining(intervals[0].minutes * 60); // Convert minutes to seconds
+      setTimerComplete(false);
+    }
+  };
+
+  // Timer effect to handle countdown and slide transitions
+  useEffect(() => {
+    let timerId: ReturnType<typeof setInterval> | undefined;
+    
+    if (isTimerActive && !timerComplete && intervals.length > 0) {
+      timerId = setInterval(() => {
+        setTimeRemaining((prev) => {
+          // If time is up for current interval
+          if (prev <= 1) {
+            // Move to next interval or complete
+            if (currentIntervalIndex < intervals.length - 1) {
+              // Set up next interval
+              const nextIndex = currentIntervalIndex + 1;
+              setCurrentIntervalIndex(nextIndex);
+              return intervals[nextIndex].minutes * 60; // Set time for next interval
+            } else {
+              // All intervals complete
+              setTimerComplete(true);
+              return 0;
+            }
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [isTimerActive, currentIntervalIndex, intervals, timerComplete]);
+
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar defaultCollapsed={false} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header 
-          title=" AAAA" 
-          onMobileMenuClick={handleMobileMenuClick}
-        />
-        <main className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/10">
+    <>
+      <Drawer direction="left">
+        {!isTimerActive ? (
+          <section className="h-screen w-screen flex items-center justify-center">
+            <div className="flex flex-col gap-4">
+              <h1 className="font-semibold text-4xl">Walt's Timer</h1>
+              <p>this timer helps you keep track of time lmao</p>
+              <DrawerTrigger className="w-full">
+                <Button className="w-full">Get Started</Button>
+              </DrawerTrigger>
+            </div>
+          </section>
+        ) : (
+          <section className="h-screen w-screen flex items-center justify-center">
+            <div className="flex flex-col items-center gap-6 max-w-xl w-full p-6">
+              {/* Logo display */}
+              {getCurrentLogo() && (
+                <div className="w-24 h-24 rounded overflow-hidden border mb-4">
+                  <img 
+                    src={getCurrentLogo()!} 
+                    alt="Logo" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+              
+              {/* Current interval info */}
+              {!timerComplete ? (
+                <>
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-2">
+                      {intervals[currentIntervalIndex]?.name || `Interval ${currentIntervalIndex + 1}`}
+                    </h2>
+                    <p className="text-gray-500">
+                      {currentIntervalIndex + 1} of {intervals.length}
+                    </p>
+                  </div>
+                  
+                  {/* Timer display */}
+                  <div className="text-6xl font-bold text-blue-600 my-8">
+                    {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
+                    {(timeRemaining % 60).toString().padStart(2, '0')}
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-blue-600 h-2.5 rounded-full" 
+                      style={{
+                        width: `${100 - (timeRemaining / (intervals[currentIntervalIndex]?.minutes * 60) * 100)}%`
+                      }}
+                    ></div>
+                  </div>
+                  
+                  {/* Controls */}
+                  <div className="flex gap-4 mt-8">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsTimerActive(false)}
+                    >
+                      Exit
+                    </Button>
+                    <DrawerTrigger>
+                      <Button variant="outline">Settings</Button>
+                    </DrawerTrigger>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <h2 className="text-4xl font-bold mb-6">Timer Complete!</h2>
+                  <p className="text-xl mb-8">All intervals have been completed</p>
+                  <Button onClick={() => setIsTimerActive(false)}>Return to Home</Button>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+    
+        <DrawerContent>
+          <div className="flex justify-between border-b">
+            <h2 className="p-4 font-semibold">Timer Settings</h2> <DrawerClose className="p-4 border-l">
+              <X />
+            </DrawerClose>
+          </div>
+          <div className="p-4 border-b">
+            <h3 className="text-sm font-semibold">Total Duration</h3>
+            <h3 className="text-2xl font-bold text-blue-600">
+              {totalHours > 0 && `${totalHours}h `}{remainingMinutes > 0 || totalHours === 0 ? `${remainingMinutes}m` : ''}
+              {totalMinutes === 0 && '0m'}
+            </h3>
+          </div>
+
+          <div className="p-4 border-b">
+            <h3 className="text-sm font-semibold mb-2">Logo</h3>
+            
+            {/* Mode Toggle */}
+            <div className="flex gap-2 mb-3">
+              <Button
+                variant={uploadMode === 'url' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setUploadMode('url')}
+                className="flex items-center gap-1"
+              >
+                <Link className="w-3 h-3" />
+                URL
+              </Button>
+              <Button
+                variant={uploadMode === 'file' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setUploadMode('file')}
+                className="flex items-center gap-1"
+              >
+                <Upload className="w-3 h-3" />
+                Upload
+              </Button>
+            </div>
+
+            {/* URL Input */}
+            {uploadMode === 'url' && (
+              <div className="flex gap-2 items-center">
+                <Input 
+                  placeholder="Enter logo URL" 
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* File Upload */}
+            {uploadMode === 'file' && (
+              <div className="flex gap-2 items-center">
+                <Input 
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="flex-1"
+                />
+              </div>
+            )}
+
+            {/* Logo Preview */}
+            {getCurrentLogo() && (
+              <div className="mt-3 flex items-center gap-3">
+                <div className="w-12 h-12 rounded overflow-hidden border">
+                  <img 
+                    src={getCurrentLogo()!} 
+                    alt="Logo" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+                <div className="text-xs text-gray-500">
+                  {uploadMode === 'file' ? 'Uploaded file' : 'URL image'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className=" border-b">    
+            <div className="p-4">
+              <h2 className=" text-sm font-semibold">Intervals</h2>
+              <p className="text-sm text-gray-400">Intervals are periods that you want to track ie: Introduction, Topic 1, Topic 2, Q&A</p>
+            </div>
+            <Accordion type="single" className="border-t border-b" collapsible>
+              {intervals.map((interval, index) => (
+                <AccordionItem key={interval.id} value={interval.id} className="">
+                  <AccordionTrigger className="p-4 rounded-none ">
+                    {interval.name || `Interval ${index + 1}`}
+                  </AccordionTrigger>
+                  <AccordionContent className="p-4 flex flex-col gap-2">
+                    <div>
+                      <label className="text-xs">Name</label>
+                      <Input 
+                        placeholder="Interval name" 
+                        value={interval.name}
+                        onChange={(e) => updateInterval(interval.id, 'name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs">Minutes</label>
+                      <Input 
+                        placeholder="minutes" 
+                        type="number" 
+                        value={interval.minutes || ''}
+                        onChange={(e) => updateInterval(interval.id, 'minutes', e.target.value)}
+                      />
+                    </div>
+                    <Button 
+                      className="w-full text-red-400" 
+                      variant="outline"
+                      onClick={() => removeInterval(interval.id)}
+                    >
+                      Remove
+                    </Button>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+            <div className="p-4">
+              <Button className="w-full" variant="outline" onClick={addInterval}>
+                Add Interval
+              </Button>
+            </div>
+          </div>
+          <div className="p-4 flex flex-col gap-2">
+            <Button onClick={handleSubmit}>Start Timer</Button>
+       
+       
+            <DrawerClose className="w-full">
+                <Button className="w-full" variant="outline">Cancel</Button>
+              </DrawerClose>
+            <div className="border-t pt-4 mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full text-red-500  hover:bg-red-50" 
+                onClick={clearAllData}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All Data
+              </Button>
+            </div>
+            </div>
+         
+        </DrawerContent>
+      </Drawer>
+    </>
 
 
 
-<div style={{ width: '100%', height: '600px', position: 'relative' }}>
-  <Orb
-    hoverIntensity={0.5}
-    rotateOnHover={true}
-    hue={0}
-    forceHoverState={true}
-  />
-  <div style={{ 
-    position: 'absolute', 
-    top: '50%', 
-    left: '50%', 
-    transform: 'translate(-50%, -50%)',
-    zIndex: 10,
-    textAlign: 'center'
-  }}>
-    <p className="font-normal tracking-tight text-xl mb-2">heading</p>
-    <BlurText
-      text="Something cool"
-      delay={150}
-      animateBy="words"
-      direction="top"
-      onAnimationComplete={handleAnimationComplete}
-      className="text-5xl font-semibold tracking-tight"
-    />
-  </div>
-</div>
-
-
-      
-        </main>
-      </div>
-    </div>
   );
 }
 
