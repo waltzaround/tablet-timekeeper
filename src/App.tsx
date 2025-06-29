@@ -327,12 +327,11 @@ function App() {
                 <>
          
                   
-                  {/* Timer display - autoscales based on duration */}
                   <div className="w-full text-center my-8 select-none">
                     <div 
-                      className="font-bold tracking-tighter inline-block"
+                      className="font-bold tracking-tighter inline-block text-[34vw]"
                       style={{
-                        fontSize: `34vw`,
+                    
                         lineHeight: '0.8',
                         width: '100%',
                         textAlign: 'center'
