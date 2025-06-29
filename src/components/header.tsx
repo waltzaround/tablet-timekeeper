@@ -1,4 +1,4 @@
-import { Bell, User, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 

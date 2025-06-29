@@ -15,7 +15,6 @@ import { X, Upload, Link, Trash2 } from "lucide-react";
 import { Input } from "./components/ui/input";
 import { KeyboardAwareInput } from "./components/KeyboardAwareInput";
 import { useState, useEffect } from "react";
-import Aurora from "./components/Aurora";
 
 // Define the interval type
 interface Interval {
