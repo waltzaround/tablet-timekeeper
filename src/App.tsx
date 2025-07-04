@@ -11,7 +11,7 @@ import {
   DrawerContent,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { X, Upload, Link, Trash2 } from "lucide-react";
+import { X, Upload, Link, Trash2, ChevronLeft, ChevronRight, PauseIcon, PlayIcon, Undo2, Cog } from "lucide-react";
 import { Input } from "./components/ui/input";
 import { KeyboardAwareInput } from "./components/KeyboardAwareInput";
 import { useState, useEffect } from "react";
@@ -260,6 +260,40 @@ function App() {
     setIsPaused(prev => !prev);
   };
 
+  // Navigate to previous interval
+  const goToPreviousInterval = () => {
+    if (currentIntervalIndex > 0) {
+      const prevIndex = currentIntervalIndex - 1;
+      setCurrentIntervalIndex(prevIndex);
+      setTimeRemaining(intervals[prevIndex].minutes * 60);
+    }
+  };
+
+  // Navigate to next interval
+  const goToNextInterval = () => {
+    if (currentIntervalIndex < intervals.length - 1) {
+      const nextIndex = currentIntervalIndex + 1;
+      setCurrentIntervalIndex(nextIndex);
+      setTimeRemaining(intervals[nextIndex].minutes * 60);
+    }
+  };
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    if (!isTimerActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        goToPreviousInterval();
+      } else if (e.key === 'ArrowRight') {
+        goToNextInterval();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTimerActive, currentIntervalIndex, intervals]);
+
   // Timer effect to handle countdown and slide transitions
   useEffect(() => {
     let timerId: ReturnType<typeof setInterval> | undefined;
@@ -325,7 +359,27 @@ function App() {
               {/* Current interval info */}
               {!timerComplete ? (
                 <>
-         
+                  {/* Navigation chevrons */}
+                  {isTimerActive && intervals.length > 1 && (
+                    <>
+                      <button 
+                        onClick={goToPreviousInterval}
+                        disabled={currentIntervalIndex === 0}
+                        className={`absolute left-4 top-1/2  -translate-y-1/2 p-3 rounded-full bg-black/30 hover:bg-black/50 transition-colors ${currentIntervalIndex === 0 ? 'hidden cursor-not-allowed' : 'cursor-pointer opacity-10'}`}
+                        aria-label="Previous interval"
+                      >
+                        <ChevronLeft className="w-12 h-12 text-white" />
+                      </button>
+                      <button 
+                        onClick={goToNextInterval}
+                        disabled={currentIntervalIndex >= intervals.length - 1}
+                        className={`absolute right-4 top-1/2  -translate-y-1/2 p-3 rounded-full bg-black/30 hover:bg-black/50 transition-colors ${currentIntervalIndex >= intervals.length - 1 ? 'hidden cursor-not-allowed' : 'cursor-pointer opacity-10 '}`}
+                        aria-label="Next interval"
+                      >
+                        <ChevronRight className="w-12 h-12 text-white" />
+                      </button>
+                    </>
+                  )}
                   
                   <div className="w-full text-center my-8 select-none">
                     <div 
@@ -341,7 +395,7 @@ function App() {
                       {(timeRemaining % 60).toString().padStart(2, '0')}
                     </div>
                   </div>         <div className="text-center select-none">
-                    <h2 className="text-8xl  text-gray-400 mb-2">
+                    <h2 className="text-8xl  text-gray-500 mb-2">
                       {intervals[currentIntervalIndex]?.name || `Interval ${currentIntervalIndex + 1}`}
                     </h2>
                     <p className="text-gray-600 text-3xl mt-8">
@@ -362,14 +416,15 @@ function App() {
                   {/* Controls */}
                   <div className="flex gap-2 absolute top-4 right-4">
                     <Button 
-                      variant="outline" 
-                      className="text-gray-400 px-6"
+                      variant="ghost" 
+                      className="text-gray-400 px-2"
                       onClick={() => setIsTimerActive(false)}
                     >
-                      Reset
+                      <Undo2 />
+               
                     </Button>
                     <DrawerTrigger asChild>
-                      <Button variant="outline" className="text-gray-400 px-6">Settings</Button>
+                      <Button variant="ghost" className="text-gray-400 px-2"><Cog /></Button>
                     </DrawerTrigger>
                   </div>
                   
@@ -384,10 +439,10 @@ function App() {
                   <div className="absolute bottom-4 right-4">
                     <Button 
                       onClick={togglePause}
-                      variant={isPaused ? "default" : "outline"}
-                      className="px-6"
+                      variant={isPaused ? "default" : "ghost"}
+                      className="px-2 text-gray-400"
                     >
-                      {isPaused ? "Resume" : "Pause"}
+                      {isPaused ? <PlayIcon /> : <PauseIcon />}
                     </Button>
                   </div>
                 </>
